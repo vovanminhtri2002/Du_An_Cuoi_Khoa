@@ -16,7 +16,7 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Định nghĩa model mặc định (sau sẽ dùng ở QA chain)
-CHAT_MODEL = "models/gemini-1.0-pro"#gemini-2.5-pro#gemini-1.5-flash
+CHAT_MODEL = "models/gemini-1.5-flash"#gemini-1.0-pro#gemini-2.5-pro#gemini-1.5-flash
 VISION_MODEL = "models/gemini-1.5-flash"
 EMBEDDING_MODEL = "models/embedding-001"
 
