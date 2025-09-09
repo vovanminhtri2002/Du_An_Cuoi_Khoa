@@ -83,7 +83,7 @@ streamlit run app.py
 
 ---
 
-**## 📂 Cấu trúc thư mục**
+## 📂 Cấu trúc thư mục
 
 ```bash
 ├── app.py              # Ứng dụng chính
