@@ -114,6 +114,7 @@ streamlit run app.py
 🔗 Kết nối với Google Drive / OneDrive để đọc tài liệu trực tiếp
 ```
 ---
+![Giao diện](https://github.com/user-attachments/assets/c894bab0-55b5-4c8f-900e-7027f964d86f)
 
 ## 👨‍💻 Tác giả
 
