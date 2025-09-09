@@ -100,7 +100,7 @@ streamlit run app.py
 ## 📸 Demo giao diện
 
 ```bash
-<img width="1920" height="881" alt="giaodien" src="https://github.com/user-attachments/assets/10ffe3c8-750c-4777-8e34-88ee3d2acbf2" />
+![Giao diện](https://github.com/user-attachments/assets/c894bab0-55b5-4c8f-900e-7027f964d86f)
 ```
 ---
 
@@ -114,7 +114,6 @@ streamlit run app.py
 🔗 Kết nối với Google Drive / OneDrive để đọc tài liệu trực tiếp
 ```
 ---
-![Giao diện](https://github.com/user-attachments/assets/c894bab0-55b5-4c8f-900e-7027f964d86f)
 
 ## 👨‍💻 Tác giả
 
