@@ -81,6 +81,7 @@ pip install -r requirements.txt
 
 # Chạy ứng dụng
 streamlit run app.py
+```
 
 ---
 
@@ -94,4 +95,4 @@ streamlit run app.py
 ├── requirements.txt    # Các thư viện cần cài
 ├── temp_uploads/       # Thư mục chứa file upload tạm
 └── README.md           # Mô tả dự án
-
+```
