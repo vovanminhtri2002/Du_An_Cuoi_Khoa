@@ -15,7 +15,7 @@
 - [✨ Giới thiệu](#-giới-thiệu)  
 - [🚀 Tính năng nổi bật](#-tính-năng-nổi-bật)  
 - [🎯 Ý nghĩa & Ứng dụng](#-ý-nghĩa--ứng-dụng)  
-- [🛠️ Công nghệ sử dụng](#️-công-nghệ-sử-dụng)  
+- [🛠️ Công nghệ sử dụng](#-công-nghệ-sử-dụng)  
 - [⚡ Cài đặt & Chạy](#-cài-đặt--chạy)  
 - [📂 Cấu trúc thư mục](#-cấu-trúc-thư-mục)  
 - [📸 Demo giao diện](#-demo-giao-diện)  
