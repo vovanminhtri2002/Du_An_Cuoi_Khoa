@@ -80,3 +80,16 @@ pip install -r requirements.txt
 
 # Chạy ứng dụng
 streamlit run app.py
+
+---
+
+**## 📂 Cấu trúc thư mục**
+
+```bash
+├── app.py              # Ứng dụng chính
+├── data_loader.py      # Module xử lý và trích xuất nội dung
+├── vector_store.py     # Module tạo & lưu vector bằng FAISS
+├── config.py           # Cấu hình API Key và model
+├── requirements.txt    # Các thư viện cần cài
+├── temp_uploads/       # Thư mục chứa file upload tạm
+└── README.md           # Mô tả dự án
