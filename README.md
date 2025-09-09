@@ -117,10 +117,9 @@ streamlit run app.py
 
 ## 👨‍💻 Tác giả
 
-```bash
-- Họ tên: Võ Văn Minh Trí
-- Email: vovanminhtri2002@gmail.com
-```
+- **Họ tên: Võ Văn Minh Trí**
+- **Email: vovanminhtri2002@gmail.com**
+
 ---
 
 ## 📜 License
