@@ -49,7 +49,8 @@ Không cần đọc thủ công hàng trăm trang, chỉ cần hỏi – AI sẽ
 - **Văn phòng**: Tra cứu nội dung hợp đồng, báo cáo Excel  
 - **Luật/Pháp lý**: Tìm nhanh điều khoản trong văn bản  
 - **Y tế**: Hỗ trợ đọc hồ sơ bệnh án, báo cáo xét nghiệm  
-**AI đọc tài liệu giúp tiết kiệm 80% thời gian**.  
+
+💡 **AI đọc tài liệu giúp tiết kiệm 80% thời gian**  
 
 ---
 
@@ -82,14 +83,7 @@ pip install -r requirements.txt
 streamlit run app.py
 
 ---
-
-## 📂 Cấu trúc thư mục
-
+```markdown
+## Chào em nha
 ```bash
-├── app.py              # Ứng dụng chính
-├── data_loader.py      # Module xử lý và trích xuất nội dung
-├── vector_store.py     # Module tạo & lưu vector bằng FAISS
-├── config.py           # Cấu hình API Key và model
-├── requirements.txt    # Các thư viện cần cài
-├── temp_uploads/       # Thư mục chứa file upload tạm
-└── README.md           # Mô tả dự án
+chịu
