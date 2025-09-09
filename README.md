@@ -82,7 +82,6 @@ pip install -r requirements.txt
 # Chạy ứng dụng
 streamlit run app.py
 ```
-
 ---
 
 ## 📂 Cấu trúc thư mục
@@ -96,3 +95,37 @@ streamlit run app.py
 ├── temp_uploads/       # Thư mục chứa file upload tạm
 └── README.md           # Mô tả dự án
 ```
+---
+
+## 📸 Demo giao diện
+
+```bash
+<img width="1920" height="881" alt="giaodien" src="https://github.com/user-attachments/assets/10ffe3c8-750c-4777-8e34-88ee3d2acbf2" />
+```
+---
+
+## 🔮 Hướng phát triển
+
+```bash
+🌐 Triển khai online (Streamlit Cloud / HuggingFace / Vercel)
+🎙️ Thêm voice chat (input bằng giọng nói, output TTS)
+👥 Hỗ trợ multi-user, multi-session
+📊 Tích hợp phân tích dữ liệu (chart, dashboard) khi đọc file Excel
+🔗 Kết nối với Google Drive / OneDrive để đọc tài liệu trực tiếp
+```
+---
+
+## 👨‍💻 Tác giả
+
+```bash
+Họ tên: Võ Văn Minh Trí
+Email: vovanminhtri2002@gmail.com
+```
+---
+
+## 📜 License
+
+```bash
+MIT License © 2025
+```
+---
