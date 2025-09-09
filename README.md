@@ -99,9 +99,8 @@ streamlit run app.py
 
 ## 📸 Demo giao diện
 
-```bash
 ![Giao diện](https://github.com/user-attachments/assets/c894bab0-55b5-4c8f-900e-7027f964d86f)
-```
+
 ---
 
 ## 🔮 Hướng phát triển
