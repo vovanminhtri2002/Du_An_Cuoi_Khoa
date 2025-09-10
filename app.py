@@ -1,135 +1,134 @@
 import streamlit as st
+import os
 import data_loader, vector_store
 import google.generativeai as genai
-import os
 from config import GEMINI_API_KEY, CHAT_MODEL
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import re
+import shutil
+from io import BytesIO
 
-# Config
+# ---------------- Fonts ----------------
+pdfmetrics.registerFont(TTFont("DejaVuSans", "DejaVuSans.ttf"))
+
+# ---------------- Config ----------------
 genai.configure(api_key=GEMINI_API_KEY)
 st.set_page_config(page_title="Chat với tài liệu", layout="wide")
-
-# Tạo thư mục lưu file tạm
 TEMP_DIR = "temp_uploads"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+# ---------------- Session state ----------------
 if "history" not in st.session_state:
     st.session_state.history = []
 if "files" not in st.session_state:
-    st.session_state.files = []
-if "file_history" not in st.session_state:
-    st.session_state.file_history = []   # chỉ lưu tên file
+    st.session_state.files = {}
+
+# ---------------- Helper delete ----------------
+def delete_file(fname):
+    file_data = st.session_state.files.get(fname)
+    if file_data:
+        # Xoá file tạm
+        if os.path.exists(file_data["path"]):
+            os.remove(file_data["path"])
+        # Xoá folder FAISS
+        file_base = os.path.splitext(fname)[0]
+        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', file_base)
+        faiss_folder = os.path.join(vector_store.FAISS_DIR, safe_name)
+        if os.path.exists(faiss_folder):
+            shutil.rmtree(faiss_folder)
+        # Xoá khỏi session
+        if fname in st.session_state.files:
+            del st.session_state.files[fname]
+        st.experimental_rerun()
 
 # ---------------- Sidebar ----------------
 with st.sidebar:
     st.header("📂 Tài liệu của bạn")
-    uploaded_file = st.file_uploader(
-        "Tải file (PDF, Word, Excel, Ảnh)",
+    uploaded_files = st.file_uploader(
+        "Tải file (PDF, Word, Excel, Ảnh)...",
         type=["pdf", "docx", "xlsx", "png", "jpg", "jpeg"],
         accept_multiple_files=True
     )
 
-    if uploaded_file:
-        for file in uploaded_file:
-            if file.name not in [f["name"] for f in st.session_state.files]:
-                with st.status(f"⏳ Đang xử lý file: {file.name}", expanded=True) as status:
-                    # Lưu file vào thư mục riêng
-                    temp_path = os.path.join(TEMP_DIR, file.name)
-                    with open(temp_path, "wb") as f:
-                        f.write(file.read())
+    if uploaded_files:
+        for file in uploaded_files:
+            if file.name in st.session_state.files:
+                continue
+            # Lưu file tạm
+            temp_path = os.path.join(TEMP_DIR, file.name)
+            with open(temp_path, "wb") as f:
+                f.write(file.read())
+            # Đọc nội dung
+            text = data_loader.load_file(temp_path)
+            chunks = vector_store.get_text_chunks(text)
+            # sanitize tên file, bỏ extension và chỉ còn a-z, A-Z, 0-9, _,-
+            file_base = os.path.splitext(file.name)[0]
+            safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', file_base)
+            db_path = os.path.join(vector_store.FAISS_DIR, safe_name)
+            os.makedirs(db_path, exist_ok=True)
+            # lưu FAISS index
+            vector_store.save_vector_store(chunks, save_path=db_path)
+            # load FAISS
+            db = vector_store.load_vector_store(db_path)
+            # lưu vào session
+            st.session_state.files[file.name] = {
+                "file_obj": file,
+                "path": temp_path,
+                "text": text,
+                "db": db,
+                "db_path": db_path
+            }
 
-                    # Xử lý file
-                    text = data_loader.load_file(temp_path)
-                    chunks = vector_store.get_text_chunks(text)
-                    db_path = vector_store.save_vector_store(chunks)
+    # Hiển thị file chính thức
+    st.subheader("📌 File đang sử dụng:")
+    for fname in list(st.session_state.files.keys()):
+        col1, col2 = st.columns([4,1])
+        col1.write(fname)
+        if col2.button("❌", key=f"remove_active_{fname}"):
+            delete_file(fname)
+            st.experimental_rerun()
 
-                    st.session_state.files.append({
-                        "name": file.name,
-                        "path": temp_path,
-                        "text": text,
-                        "db": vector_store.load_vector_store(db_path)
-                    })
+    # Lịch sử tải file
+    st.subheader("🕑 Lịch sử tải file:")
+    for fname in list(st.session_state.files.keys()):
+        col1, col2 = st.columns([4,1])
+        col1.write(fname)
+        if col2.button("❌", key=f"remove_history_{fname}"):
+            delete_file(fname)
+            st.experimental_rerun()
 
-                    # Ghi vào lịch sử
-                    if file.name not in st.session_state.file_history:
-                        st.session_state.file_history.append(file.name)
-
-                    status.update(label=f"✅ File đã được xử lý: {file.name}", state="complete")
-
-        uploaded_file = None  # reset uploader tránh load lại
-
-    # Hiển thị lịch sử tải file (chỉ tên + nút xóa)
-    if st.session_state.file_history:
-        st.markdown("### 🕑 Lịch sử tải file:")
-        for i, fname in enumerate(st.session_state.file_history):
-            col1, col2 = st.columns([4,1])
-            with col1:
-                st.markdown(f"- {fname}")
-            with col2:
-                if st.button("❌", key=f"hist_del_{i}"):
-                    st.session_state.file_history.pop(i)
-                    st.rerun()
-
-# ---------------- Chat Area ----------------
+# ---------------- Chat area ----------------
 st.title("💬 Chat với tài liệu")
 
-# CSS custom cho chat giống ChatGPT (giữ nguyên)
 st.markdown("""
-    <style>
-    .stChatMessage.user {
-        background-color: #d4f1ff !important;
-        border-radius: 10px;
-        padding: 8px;
-    }
-    .stChatMessage.assistant {
-        background-color: #f1f1f1 !important;
-        border-radius: 10px;
-        padding: 8px;
-    }
-    .typing {
-        display: inline-block;
-        width: 1em;
-        height: 1em;
-        border-radius: 50%;
-        background-color: #999;
-        animation: blink 1.4s infinite both;
-        margin: 0 2px;
-    }
-    @keyframes blink {
-        0% { opacity: .2; }
-        20% { opacity: 1; }
-        100% { opacity: .2; }
-    }
-    </style>
+<style>
+.stChatMessage.user {background-color: #d4f1ff !important; border-radius: 10px; padding: 8px;}
+.stChatMessage.assistant {background-color: #f1f1f1 !important; border-radius: 10px; padding: 8px;}
+.typing {display:inline-block; width:1em; height:1em; border-radius:50%; background-color:#999; animation: blink 1.4s infinite both; margin:0 2px;}
+@keyframes blink {0% {opacity:.2;} 20% {opacity:1;} 100% {opacity:.2;}}
+</style>
 """, unsafe_allow_html=True)
 
-# Hiển thị lịch sử chat hiện có
 chat_container = st.container()
 with chat_container:
     for msg in st.session_state.history:
-        with st.chat_message(msg["role"], avatar="🧑" if msg["role"] == "user" else "🤖"):
+        with st.chat_message(msg["role"], avatar="🧑" if msg["role"]=="user" else "🤖"):
             st.markdown(msg["content"])
 
-# Xử lý input người dùng
+# Input
 if query := st.chat_input("Nhập câu hỏi..."):
-    # 1) Lưu user message vào history + hiển thị ngay
-    st.session_state.history.append({"role": "user", "content": query})
+    st.session_state.history.append({"role":"user","content":query})
     with st.chat_message("user", avatar="🧑"):
         st.markdown(query)
-
-    # 2) Hiển thị 1 ô assistant duy nhất làm placeholder typing
-    with st.chat_message("assistant", avatar="🤖"):
+    with st.chat_message("assistant", avatar="🤖") as msg:
         typing_placeholder = st.empty()
-        typing_placeholder.markdown(
-            '<span class="typing"></span><span class="typing"></span><span class="typing"></span>',
-            unsafe_allow_html=True
-        )
-
-        # 3) Chuẩn bị danh sách file đã upload
-        file_names = [f["name"] for f in st.session_state.files]
-        # Tìm file được nhắc trong query (so sánh cả tên đầy đủ và tên không mở rộng)
+        typing_placeholder.markdown('<span class="typing"></span>'*3, unsafe_allow_html=True)
+        # chọn target files
+        file_names = [f for f in st.session_state.files.keys()]
         mentioned_files = []
         qlow = query.lower()
         for name in file_names:
@@ -137,89 +136,131 @@ if query := st.chat_input("Nhập câu hỏi..."):
             name_noext = os.path.splitext(name_low)[0]
             if name_low in qlow or name_noext in qlow:
                 mentioned_files.append(name)
-
-        # Nếu có file được nhắc, chỉ dùng những file đó; không thì dùng tất cả
         if mentioned_files:
-            target_files = [f for f in st.session_state.files if f["name"] in mentioned_files]
-            reading_info = " ,".join(mentioned_files)
-            # hiển thị thông tin nhỏ trong main area (cùng block assistant)
-            typing_placeholder.markdown(f"📖 Bot đang đọc: **{reading_info}**<br><br>" +
-                                       '<span class="typing"></span><span class="typing"></span><span class="typing"></span>',
-                                       unsafe_allow_html=True)
+            target_files = [st.session_state.files[n] for n in mentioned_files]
+            reading_info = ", ".join(mentioned_files)
+            typing_placeholder.markdown(f"📖 Bot đang đọc: **{reading_info}**<br><br>"+'<span class="typing"></span>'*3, unsafe_allow_html=True)
         else:
-            target_files = st.session_state.files[:]  # copy toàn bộ
-            typing_placeholder.markdown("📖 Bot đang đọc: **tất cả file đã tải lên**<br><br>" +
-                                       '<span class="typing"></span><span class="typing"></span><span class="typing"></span>',
-                                       unsafe_allow_html=True)
-
-        # 4) Lấy context từ các target_files (chỉ khi có db)
+            target_files = list(st.session_state.files.values())
+            typing_placeholder.markdown("📖 Bot đang đọc: **tất cả file đã tải lên**<br><br>"+'<span class="typing"></span>'*3, unsafe_allow_html=True)
+        # Lấy context
         context_parts = []
         for f in target_files:
             db = f.get("db")
-            if not db:
-                # Nếu file chưa có db (khoảng hợp bạn muốn chỉ lưu lịch sử), bỏ qua
-                continue
+            if not db: continue
             try:
-                # Chỉ search nếu query thực sự có nội dung
-                if query and query.strip():
-                    results = db.similarity_search(query, k=2)
-                    context_parts.extend([r.page_content for r in results if r and getattr(r, "page_content", None)])
-            except Exception as e:
-                # Nếu embed/search lỗi, skip file này (không crash app)
-                # Bạn có thể log lỗi nếu cần: st.write(f"Search error for {f['name']}: {e}")
-                continue
-
+                results = db.similarity_search(query, k=2)
+                context_parts.extend([r.page_content for r in results if r and getattr(r,"page_content",None)])
+            except: continue
         context = "\n\n".join(context_parts).strip()
-
-        # 5) Nếu không có context (chưa processed file nào), trả lời hướng dẫn
         if not context:
-            reply = ("Mình chưa tìm thấy nội dung từ các file đã xử lý. "
-                     "Hãy đảm bảo bạn đã upload và file đã được xử lý (tạo index) trước khi hỏi, "
-                     "hoặc gõ rõ 'đọc [tên file]' để chỉ định file.")
+            reply = "Mình chưa tìm thấy nội dung từ các file đã xử lý. Hãy đảm bảo đã upload và tạo index trước khi hỏi."
             typing_placeholder.markdown(reply, unsafe_allow_html=True)
-            st.session_state.history.append({"role": "assistant", "content": reply})
+            st.session_state.history.append({"role":"assistant","content":reply})
+            st.session_state.last_answer = reply
         else:
-            # 6) Gọi model (bọc try/except để bắt lỗi quota / network)
             prompt = f"Trả lời câu hỏi dựa trên nội dung sau:\n\n{context}\n\nCâu hỏi: {query}"
             try:
                 model = genai.GenerativeModel(CHAT_MODEL)
                 response = model.generate_content(prompt)
-                answer = response.text if hasattr(response, "text") else str(response)
+                answer = response.text if hasattr(response,"text") else str(response)
             except Exception as e:
-                # Hiển thị lỗi thân thiện (ví dụ quota)
                 err_msg = f"❌ Lỗi khi gọi API: {e}"
                 typing_placeholder.markdown(err_msg, unsafe_allow_html=True)
-                st.session_state.history.append({"role": "assistant", "content": err_msg})
+                st.session_state.history.append({"role":"assistant","content":err_msg})
             else:
-                # 7) Thay typing bằng câu trả lời thật (ghi vào history)
                 typing_placeholder.markdown(answer, unsafe_allow_html=True)
-                st.session_state.history.append({"role": "assistant", "content": answer})
-                
-# ---- Tải về đoạn chat nếu người dùng yêu cầu ----
-if query is not None and any(kw in query.lower() for kw in ["tải về", "xuất file", "download"]):
-    # xử lý tải về
-    # Cho phép chọn định dạng
-    export_format = st.radio("Chọn định dạng tải về:", ["PDF", "DOCX", "TXT"], horizontal=True)
+                st.session_state.history.append({"role":"assistant","content":answer})
+                st.session_state.last_answer = answer
+
+# ---------------- Export ----------------
+def _clean_text_for_plain(s: str) -> str:
+    if s is None: return ""
+    s = s.strip()
+    s = re.sub(r'^[\u2022\*\-\s]+', '', s)
+    s = re.sub(r'\*\*(.+?)\*\*', r'\1', s)
+    s = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'\1', s)
+    s = re.sub(r':\*+', ':', s)
+    return s
+
+def _clean_text_for_pdf_html(s: str) -> str:
+    if s is None: return ""
+    s = s.strip()
+    s = re.sub(r'^[\u2022\*\-\s]+', '', s)
+    s = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', s)
+    s = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', s)
+    s = re.sub(r':\*+', ':', s)
+    return s
+
+if "last_answer" in st.session_state and st.session_state.last_answer:
+    st.markdown("### 📥 Tải về câu trả lời gần nhất:")
+    export_format = st.radio("Chọn định dạng:", ["PDF","DOCX","TXT","Excel (code)"], horizontal=True)
 
     if export_format == "PDF":
-        from io import BytesIO
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
-        styles = getSampleStyleSheet()
-        story = [Paragraph(answer, styles["Normal"])]
+        style = ParagraphStyle(name="Vietnamese", fontName="DejaVuSans", fontSize=11, leading=15, spaceAfter=8)
+        story = []
+        raw_lines = st.session_state.last_answer.splitlines()
+        bullets = []
+        for raw in raw_lines:
+            line = raw.strip()
+            if not line:
+                if bullets:
+                    story.append(ListFlowable([ListItem(Paragraph(b,style)) for b in bullets], bulletType="bullet"))
+                    bullets=[]
+                story.append(Spacer(1,8))
+                continue
+            if re.match(r'^[\u2022\*\-\s]+', raw) or re.match(r'^\d+\.\s', line):
+                bullets.append(_clean_text_for_pdf_html(raw))
+                continue
+            if bullets:
+                story.append(ListFlowable([ListItem(Paragraph(b,style)) for b in bullets], bulletType="bullet"))
+                bullets=[]
+            story.append(Paragraph(_clean_text_for_pdf_html(line), style))
+        if bullets:
+            story.append(ListFlowable([ListItem(Paragraph(b,style)) for b in bullets], bulletType="bullet"))
         doc.build(story)
         buffer.seek(0)
         st.download_button("⬇️ Tải về PDF", data=buffer, file_name="chatbot_output.pdf", mime="application/pdf")
 
     elif export_format == "DOCX":
-        from io import BytesIO
         from docx import Document
-        doc = Document()
-        doc.add_paragraph(answer)
         buffer = BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
+        doc = Document()
+        def _add_docx_paragraph_with_md_runs(paragraph_obj, text):
+            tokens = re.split(r'(\*\*.*?\*\*|\*.*?\*)', text)
+            for tok in tokens:
+                if not tok: continue
+                if tok.startswith("**") and tok.endswith("**") and len(tok)>=4:
+                    run = paragraph_obj.add_run(tok[2:-2]); run.bold=True
+                elif tok.startswith("*") and tok.endswith("*") and len(tok)>=2:
+                    run = paragraph_obj.add_run(tok[1:-1]); run.italic=True
+                else:
+                    paragraph_obj.add_run(tok)
+        for raw in st.session_state.last_answer.splitlines():
+            line = raw.strip()
+            if not line:
+                doc.add_paragraph(""); continue
+            if re.match(r'^[\u2022\*\-\s]+', raw):
+                p = doc.add_paragraph(style="List Bullet"); _add_docx_paragraph_with_md_runs(p,_clean_text_for_plain(raw)); continue
+            if re.match(r'^\d+\.\s', line):
+                p = doc.add_paragraph(style="List Number"); _add_docx_paragraph_with_md_runs(p,_clean_text_for_plain(line)); continue
+            p = doc.add_paragraph(); _add_docx_paragraph_with_md_runs(p,_clean_text_for_plain(line))
+        doc.save(buffer); buffer.seek(0)
         st.download_button("⬇️ Tải về DOCX", data=buffer, file_name="chatbot_output.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
     elif export_format == "TXT":
-        st.download_button("⬇️ Tải về TXT", data=answer, file_name="chatbot_output.txt", mime="text/plain")
+        cleaned_lines = [_clean_text_for_plain(l) if l.strip() else "" for l in st.session_state.last_answer.splitlines()]
+        st.download_button("⬇️ Tải về TXT", data="\n".join(cleaned_lines), file_name="chatbot_output.txt", mime="text/plain")
+
+    elif export_format == "Excel (code)":
+        st.markdown("### 💡 Gợi ý code để xuất ra Excel (chạy local)")
+        example_code = f'''
+import pandas as pd
+lines = [line.strip() for line in """{st.session_state.last_answer}""".split("\\n") if line.strip()]
+df = pd.DataFrame({{"Nội dung": lines}})
+df.to_excel("chatbot_output.xlsx", index=False, sheet_name="Chatbot Output")
+print("✅ Đã lưu chatbot_output.xlsx")
+        '''
+        st.code(example_code, language="python")
