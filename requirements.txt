@@ -1,18 +1,25 @@
+# ---------------- Core ----------------
 streamlit
 python-dotenv
 google-generativeai==0.8.5
+
+# ---------------- LangChain & Vector ----------------
 langchain
 langchain-google-genai
 langchain-community
 faiss-cpu
+sentence-transformers
+
+# ---------------- File processing ----------------
 pandas
 python-docx
 docx2txt
 PyPDF2
 openpyxl
+xlsxwriter
 pillow
 pytesseract
-xlsxwriter
-sentence-transformers
-reportlab 
-matplotlib  
+
+# ---------------- PDF / Reporting / Charts ----------------
+reportlab
+matplotlib
